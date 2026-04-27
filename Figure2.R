@@ -85,41 +85,28 @@ combined_p<-function(x,weights){
   }
 }
 
-#Fisher's method
-fisher_method<-function(x){
-  chisq<- -2*sum(c(log(x[2]),log(x[4]),log(x[6])))
-  p<- 1-pchisq(chisq,6)
-  return(p)
-}
 
 cps_s<-c()
-cps_f<-c()
 for(i in rownames(pvals_df)){
-  cps_s<-c(cps_s,combined_p(unlist(pvals_df[i,]),c(241,65,49)))
-  cps_f<-c(cps_f,fisher_method(unlist(pvals_df[i,])))
+  cps_s<-c(cps_s,combined_p(unlist(pvals_df[i,]),c(241,49)))
 }
 
 pvals_df$stouffer<-cps_s
 pvals_df[order(pvals_df$stouffer),]
-pvals_df$fisher<-cps_f
-pvals_df[order(pvals_df$fisher),]
+
 
 
 pvals_df$stouffer_rank<-rank(pvals_df$stouffer)
 pvals_df$stouffer_sig<-'ns'
 pvals_df[pvals_df$stouffer<0.05,'stouffer_sig']<-'sig'
 
-pvals_df$fisher_rank<-rank(pvals_df$fisher)
-
-pvals_df$fisher_sig<-'ns'
-pvals_df[pvals_df$fisher<0.05,'fisher_sig']<-'sig'
 
 pvals_df$metabolite<-rownames(pvals_df)
 
 pvals_df
 
 
-pvals_df$HR<-rowMeans(pvals_df[,c('SYSUCC_ICI_1_HR','GDGH_ICI_2_HR','SYSUCC_ICI_3_HR')])
+pvals_df$HR<-rowMeans(pvals_df[,c('SYSUCC_ICI_1_HR','SYSUCC_ICI_3_HR')])
 pvals_df
 
 #lipid metabolite modules vs non-lipid metabolite modules
@@ -139,21 +126,6 @@ ggplot(data=pvals_df,aes(x = stouffer_rank, y = -log10(stouffer)))+geom_point(ae
   geom_text_repel(data = pvals_df[pvals_df$stouffer<0.05,],
                   aes(label = metabolite),size = 5,col = 'black',max.overlaps=30)+
   labs(x='Rank',y="-Log10(combined p-value)",title="Stouffer's method")+
-  theme_classic()+ theme(plot.title = element_text(hjust = 0.5,size = 20),
-                         axis.text = element_text(color = "black", size = 20),
-                         axis.title = element_text(size = 20),
-                         legend.text = element_text(size = 15, color = "black"),
-                         legend.title = element_text(size = 15, face = "bold"),
-                         axis.text.x = element_text(angle=0, vjust=1, hjust=0.5))
-
-
-#Fisher's method
-ggplot(data=pvals_df,aes(x = fisher_rank, y = -log10(fisher)))+geom_point(aes(fill=type),size=5,shape = 21)+
-  scale_fill_manual(values = c("#ff004c", "#0099ff"))+
-  scale_color_manual(values = c("#ff004c","#0099ff"))+
-  geom_text_repel(data = pvals_df[pvals_df$fisher<0.05,],
-                  aes(label = metabolite),size = 5,col = 'black',max.overlaps=30)+
-  labs(x='Rank',y="-Log10(combined p-value)",title="Fisher's method")+
   theme_classic()+ theme(plot.title = element_text(hjust = 0.5,size = 20),
                          axis.text = element_text(color = "black", size = 20),
                          axis.title = element_text(size = 20),
@@ -190,23 +162,6 @@ ggplot(data=pvals_df[pvals_df$type=='lipids',],aes(x = log(HR), y = -log10(stouf
 
 
 
-#Fisher's method
-ggplot(data=pvals_df[pvals_df$type=='lipids' ,],aes(x = log(HR), y = -log10(fisher),size=-log10(fisher)))+
-  geom_point(aes(fill=log(HR)),shape = 21)+
-  geom_hline(yintercept = -log10(0.05), color = "grey", linewidth = 1,linetype = "dashed")+
-  geom_vline(xintercept = 0, color = "grey", linewidth = 1,linetype = "dashed")+
-  scale_size_continuous(range = c(1,6))+
-  scale_fill_gradient2(low = "#0099ff",
-                       mid = "white",
-                       high = "#ff004c") +
-  geom_text_repel(data = pvals_df[pvals_df$fisher<0.05 & pvals_df$type=='lipids',],
-                  aes(label = metabolite),size = 5,col = 'black',max.overlaps=30)+
-  labs(x='Log(HR)',y="-Log10(combined p-value)",title="Fisher's method")+
-  xlim(-0.5,0.5)+
-  theme_classic()+theme(text = element_text(size = 20),plot.title = element_text(hjust = 0.5))
-
-
-
 #---------------------------------------------------------------------------------------------------
 #Clustering GC patients based on serum metabolon enrichment scores, serum metabolon-defined subtypes, serotypes
 #applying consensus clustering
@@ -216,7 +171,7 @@ library(ConsensusClusterPlus)
 setwd('./serum_types/')
 
 
-data<-t(all_data[,c('PE_P','PE_O','LPC','LPC_O','DG','Cer_NDS','Cer_AP','Cer_AS')])
+data<-t(all_data[,c('PE-P, 'PE-O', 'LPE','PC','DG', 'Cer-NDS','Cer-NP', 'Cer-NS', 'Cer-AS',''Cer-AP')])
 head(data)
 
 
@@ -273,9 +228,9 @@ custom_theme <- function(base_size = 14) {
       axis.text.y = element_text(size = base_size - 2, color = "black"),
       legend.title = element_text(size = base_size),
       legend.text = element_text(size = base_size - 2),
-      legend.position = "top",  # 图例位置
+      legend.position = "top",  
       
-      # 风险表设置
+     
       table = list(
         theme(
           axis.title.y = element_blank(),
@@ -393,16 +348,17 @@ Heatmap(t(all_data[samples,
 
 
 
-#bulid a simple logistic regression model
-library(caret)
+#bulid a simple LASSO logistic regression model
+library(glmnet)
+
 
 set.seed(12345)
 
 index <- createDataPartition(all_data$group, p=.8, list=FALSE, times=1)
 
 
-train_df <- all_data[index,c('PE_P','PE_O','LPC','LPC_O','DG','Cer_NDS','Cer_AP','Cer_AS','group')]
-test_df <- all_data[-index,c('PE_P','PE_O','LPC','LPC_O','DG','Cer_NDS','Cer_AP','Cer_AS','group')]
+train_df <- all_data[index,c('PE-P, 'PE-O', 'LPE','PC','DG', 'Cer-NDS','Cer-NP', 'Cer-NS', 'Cer-AS',''Cer-AP','group')]
+test_df <- all_data[-index,c('PE-P, 'PE-O', 'LPE','PC','DG', 'Cer-NDS','Cer-NP', 'Cer-NS', 'Cer-AS',''Cer-AP','group')]
 
 train_df$group[train_df$group==1] <- "Serotype1"
 train_df$group[train_df$group==2] <- "Serotype2"
@@ -414,47 +370,32 @@ test_df$group[test_df$group==2] <- "Serotype2"
 train_df$group <- as.factor(train_df$group)
 test_df$group <- as.factor(test_df$group)
 
-ctrlspecs <- trainControl(method="cv", 
-                          number=10, 
-                          savePredictions="all",
-                          classProbs=TRUE)
 
+x <- model.matrix(group ~ ., train_df)[, -1]
+y <- train_df$group
 
-model1 <- train(group ~ PE_P + PE_O + LPC + LPC_O + DG + Cer_NDS + Cer_AP+ Cer_AS, data=train_df, 
-                method="glm", 
-                family=binomial, 
-                trControl=ctrlspecs)
+library(glmnet)
 
-
-model1
+lasso <- cv.glmnet(x, y, family="binomial", alpha=1,nfolds=5,type.measure="deviance")
 
 
 
-s<-summary(model1)
+coefficients<-as.data.frame(as.matrix(coef(lasso, s = "lambda.1se")))
 
-coefficients<-as.data.frame(s$coefficients)
+coefficients<-coefficients[2:11,,drop=F]
 
-coefficients<-coefficients[2:9,]
+coefficients<-coefficients[order(coefficients$s1),,drop=F]
 
-coefficients<-coefficients[order(coefficients$Estimate),]
 
-coefficients$sig<-'ns'
-
-coefficients[coefficients$`Pr(>|z|)`<0.05,'sig']<-'sig'
 
 coefficients$m<-rownames(coefficients)
 
 coefficients$m<-factor(coefficients$m,levels = rownames(coefficients))
 
-varImp(model1)
 
 ggplot(data=coefficients)+
-  geom_point(aes(x=Estimate,y=m, size=-log10(`Pr(>|z|)`),color=sig),shape=16)+
-  geom_linerange(aes(y=m,xmin=Estimate-`Std. Error`, xmax=Estimate+`Std. Error`), color='black')+
-  scale_size_continuous(range = c(5,10))+
-  geom_vline(xintercept = 0, linetype="dashed")+labs(x="Coefficient", y="")+ggtitle('Logistic regression')+
-  scale_fill_manual(values = c('grey','#E76F51'))+
-  scale_color_manual(values = c('grey','#E76F51'))+
+  geom_point(aes(x=s1,y=m), size=10,shape=16,color='#E76F51')+
+  geom_vline(xintercept = 0, linetype="dashed")+labs(x="Coefficient", y="")+ggtitle('LASSO logistic regression')+
   theme_classic()+  theme(plot.title = element_text(hjust = 0.5,size = 20),
                           axis.text = element_text(color = "black", size = 20),
                           axis.title = element_text(size = 20),
@@ -462,10 +403,10 @@ ggplot(data=coefficients)+
                           legend.title = element_text(size = 15, face = "bold"))
 
 
+predictions <- predict(lasso,
+                       model.matrix(group ~ ., test_df)[, -1], s = "lambda.1se", type = "response")
 
-
-
-predictions <- predict(model1, newdata=test_df)
+pred_class <- ifelse(predictions > 0.5, "Serotype2", "Serotype1")
 
 
 confusionMatrix(data=predictions, test_df$group)
@@ -509,7 +450,7 @@ SYSUCC_ICI_ESCA_res_m
 
 
 
-predictions <- predict(model1, newdata=SYSUCC_ICI_ESCA_res_m[,c('PE_P','PE_O','LPC','LPC_O','DG','Cer_NDS','Cer_AP','Cer_AS')])
+predictions <- predict(model1, newdata=SYSUCC_ICI_ESCA_res_m[,c('PE-P, 'PE-O', 'LPE','PC','DG', 'Cer-NDS','Cer-NP', 'Cer-NS', 'Cer-AS',''Cer-AP')])
 
 
 SYSUCC_ICI_ESCA_res_m$group<-as.vector(predictions)
